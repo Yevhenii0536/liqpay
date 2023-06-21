@@ -1,4 +1,4 @@
-#LiqPay Integration
+#LiqPay Integration#
 
 This project demonstrates how to integrate LiqPay payment gateway into a Node.js application. LiqPay is a popular payment solution that allows businesses to accept online payments securely.
 
