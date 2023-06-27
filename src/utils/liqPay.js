@@ -1,8 +1,7 @@
 const request = require('request');
 const crypto = require('crypto');
-const { PUBLIC_KEY, PRIVATE_KEY } = require('./keys');
 
-function LiqPay(PUBLIC_KEY, PRIVATE_KEY) {
+function LiqPay(publicKey, privateKey) {
   this.host = 'https://www.liqpay.ua/api/';
 
   this.api = function api(path, params, callback, callbackerr) {
@@ -10,9 +9,9 @@ function LiqPay(PUBLIC_KEY, PRIVATE_KEY) {
       throw new Error('version is null');
     }
 
-    params.PUBLIC_KEY = PUBLIC_KEY;
+    params.PUBLIC_KEY = publicKey;
     const data = Buffer.from(JSON.stringify(params)).toString('base64');
-    const signature = this.str_to_sign(PRIVATE_KEY + data + PRIVATE_KEY);
+    const signature = this.str_to_sign(privateKey + data + privateKey);
 
     request.post(
       this.host + path,
@@ -36,7 +35,7 @@ function LiqPay(PUBLIC_KEY, PRIVATE_KEY) {
 
     params = this.cnb_params(params);
     const data = Buffer.from(JSON.stringify(params)).toString('base64');
-    const signature = this.str_to_sign(PRIVATE_KEY + data + PRIVATE_KEY);
+    const signature = this.str_to_sign(privateKey + data + privateKey);
 
     return (
       '<form method="POST" action="https://www.liqpay.ua/api/3/checkout" accept-charset="utf-8">' +
@@ -54,11 +53,11 @@ function LiqPay(PUBLIC_KEY, PRIVATE_KEY) {
   this.cnb_signature = function cnb_signature(params) {
     params = this.cnb_params(params);
     const data = Buffer.from(JSON.stringify(params)).toString('base64');
-    return this.str_to_sign(PRIVATE_KEY + data + PRIVATE_KEY);
+    return this.str_to_sign(privateKey + data + privateKey);
   };
 
   this.cnb_params = function cnb_params(params) {
-    params.PUBLIC_KEY = PUBLIC_KEY;
+    params.PUBLIC_KEY = publicKey;
 
     if (!params.version) {
       throw new Error('version is null');
@@ -91,7 +90,7 @@ function LiqPay(PUBLIC_KEY, PRIVATE_KEY) {
 
     params = this.cnb_params(params);
     const data = Buffer.from(JSON.stringify(params)).toString('base64');
-    const signature = this.str_to_sign(PRIVATE_KEY + data + PRIVATE_KEY);
+    const signature = this.str_to_sign(privateKey + data + privateKey);
 
     return { data: data, signature: signature };
   };

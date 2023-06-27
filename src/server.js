@@ -4,20 +4,17 @@ const app = express();
 const { billRouter } = require('./routes/bill');
 const { CONNECT_LINK } = require('./utils/connectLink');
 
-app.use((req, res, next) => {
-  console.log(req.url, req.body);
-  next();
-});
-
 mongoose.connect(CONNECT_LINK, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 const db = mongoose.connection;
+
 db.on(
   'error',
   console.error.bind(console, 'Помилка підключення до бази даних:'),
 );
+
 db.once('open', function () {
   console.log('Підключено до бази даних');
 });

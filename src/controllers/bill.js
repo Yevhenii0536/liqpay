@@ -7,6 +7,8 @@ const { v4: uuidv4 } = require('uuid');
 const { STATUS_LINK } = require('../utils/statusLink');
 const LiqPay = require('../utils/liqPay');
 
+const liqPay = new LiqPay(PUBLIC_KEY, PRIVATE_KEY);
+
 const checkStatus = async (req, res) => {
   try {
     const order_id = req.params.order_id;
@@ -48,7 +50,7 @@ const checkStatus = async (req, res) => {
       if (result.status !== 'error') {
         await Bill.updateOne(
           { _id: order_id },
-          { paymentStatus: result.status },
+          { paymentStatus: result.status, isPaid: true },
         );
       }
 
@@ -62,8 +64,6 @@ const checkStatus = async (req, res) => {
 
 const createPayment = async (req, res) => {
   try {
-    const liqpay = new LiqPay(PUBLIC_KEY, PRIVATE_KEY);
-
     const formData = {
       version: '3',
       public_key: PUBLIC_KEY,
@@ -74,6 +74,7 @@ const createPayment = async (req, res) => {
       description: 'Payment for order',
       order_id: uuidv4(),
       sandbox: '1',
+      server_url: 'https://4f99-87-244-141-33.eu.ngrok.io/bill/payment-result',
     };
 
     const bill = await Bill.create({
@@ -81,7 +82,7 @@ const createPayment = async (req, res) => {
       totalPrice: req.body.totalPrice,
     });
 
-    const form = liqpay.cnb_form(formData);
+    const form = liqPay.cnb_form(formData);
 
     res.send(form);
   } catch (error) {
@@ -92,59 +93,35 @@ const createPayment = async (req, res) => {
 
 const handlePaymentResult = async (req, res) => {
   try {
-    const order_id = req.body.order_id;
-    const paymentID = req.body.payment_id;
+    const encodedData = req.body.data;
 
-    const formData = {
-      version: '3',
-      public_key: PUBLIC_KEY,
-      action: 'status',
-      order_id: order_id,
-      payment_id: paymentID,
-    };
+    console.log(encodedData);
 
-    const data = buffer.Buffer.from(JSON.stringify(formData)).toString(
-      'base64',
+    let decodedData = JSON.parse(Buffer.from(encodedData, 'base64').toString());
+
+    console.log(decodedData);
+
+    liqPay.api(
+      'request',
+      {
+        action: 'status',
+        version: '3',
+        order_id: decodedData.order_id,
+      },
+      async function (json) {
+        if (json.status === 'success') {
+          await Bill.findByIdAndUpdate(
+            decodedData.order_id,
+            { isPaid: true },
+            { new: true },
+          );
+        } else {
+          console.log('Test');
+        }
+
+        res.json(json);
+      },
     );
-    const signature = crypto
-      .createHmac('sha1', PRIVATE_KEY)
-      .update(data)
-      .digest('base64');
-
-    const requestOptions = {
-      url: STATUS_LINK,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      form: {
-        data: data,
-        signature: signature,
-      },
-    };
-
-    request(requestOptions, async function (error, response, body) {
-      if (error) {
-        console.error(error);
-        return res.status(500).send('Помилка сервера');
-      }
-
-      const result = JSON.parse(body);
-
-      if (result.status !== 'error') {
-        await Bill.findByIdAndUpdate(
-          order_id,
-          { paymentStatus: result.status, isPaid: true },
-          { new: true },
-        );
-      }
-
-      if (result.status === 'success') {
-        return res.send('Платіж успішно оброблено');
-      } else {
-        return res.send('Платіж не було успішно оброблено');
-      }
-    });
   } catch (error) {
     console.error(error);
     res.status(500).send('Помилка сервера');
